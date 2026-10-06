@@ -2,13 +2,22 @@
 #include <stdio.h>
 #include "main.h"
 
+volatile int32_t pulse_count = 0; 
 
 int main(void) {
   // Enable A-input and B-input in order to get the interupts 
     gpioEnable(GPIO_PORT_B);
     pinMode(A_input, GPIO_INPUT);
+    GPIOB->PUPDR |= (0b10 << 2*gpioPinOffset(A_input)); 
+    GPIOB->PUPDR |= (0b10 << 2*gpioPinOffset(B_input));
+    pinMode(B_input, GPIO_INPUT); 
+    pinMode(A_output, GPIO_OUTPUT);
+
+    
   // create a counter to keep track of how many pulses have been counted
-    int pulse_count;             
+  RCC-> APB1ENR1 |= (1<<0); // TIM2EN
+  initTIM(DELAY_TIM);
+
 
   
   // 1. Enable SYSCFG clock domain in RCC
@@ -29,19 +38,26 @@ int main(void) {
   EXTI->RTSR1 |= (1 << gpioPinOffset(B_input)); // 2. Enable rising edge trigger for B
   EXTI->FTSR1 |= (1 << gpioPinOffset(A_input));  // 3. Enable falling edge trigger for A
   EXTI->FTSR1 |= (1 << gpioPinOffset(B_input));  // 3. Enable falling edge trigger for B
-  NVIC_EnableIRQ(EXTI0_IRQn);                    // call func to turn on EXTI0 interrupt on NVIC_ISER
-  NVIC_EnableIRQ(EXTI9_5_IRQn);                  // call func to turn on EXTI9_5 interrupt on NVIC_ISER
+  NVIC->ISER[0] |= (1 << 23);                       // 4. Turn on EXTI interrupt in NVIC_ISER (EXTI9_5 is IRQ 23)
+  NVIC->ISER[0] |= (1 << 13);                       // 4. Turn on EXTI interrupt in NVIC_ISER (EXTI0 is IRQ 12)
+  //NVIC_EnableIRQ(EXTI0_IRQn);                    // call func to turn on EXTI0 interrupt on NVIC_ISER
+  //NVIC_EnableIRQ(EXTI9_5_IRQn);                  // call func to turn on EXTI9_5 interrupt on NVIC_ISER
+
+  while(1){
+    delay_millis(DELAY_TIM,1000); 
+  }
 
 }
 // IF pulse_count is positive, then it is clockwise, if negative then ccw
 
 // A interrupt func
-void EXTI0_IRQHandler(int pulse_count){
+void EXTI0_IRQHandler(void){ 
     // Check for clockwise rotation -- if A is high and B is low 
     if (digitalRead(A_input) & ~digitalRead(B_input)) {
       // clear the interrupt (NB: Write 1 to reset)
       EXTI->PR1 = (1 << gpioPinOffset(A_input));
       pulse_count = pulse_count + 1; 
+      togglePin(A_output);
       }
 
     // check for counter clockwise rotation -- if A is high and B is high
@@ -50,22 +66,15 @@ void EXTI0_IRQHandler(int pulse_count){
       EXTI->PR1 = (1 << gpioPinOffset(A_input));
       pulse_count = pulse_count - 1;
       }
-    
-
+     
 }
-
-    (EXTI->PR1 & (1 << gpioPinOffset(A_input)))
-        // If so, clear the interrupt (NB: Write 1 to reset.)
-        EXTI->PR1 = (1 << gpioPinOffset(BUTTON_PIN));
-
-  }
-
 
 // B interrupt func
 void EXTI9_5_IRQHandler(void){
-  int pulse_count = 0; 
   // first make sure that the interrupt was from B_input (bc line 6 is shared with 5-9)
-  if (EXTI->PR1 & (1 << gpioPinOffset(A_input))) {
+  pinMode(B_output, GPIO_OUTPUT);
+  togglePin(B_output); 
+  if (EXTI->PR1 & (1 << gpioPinOffset(B_input))) {
     //check for clockwise rotation -- if B is high and A is high
     if (digitalRead(A_input) & digitalRead(B_input)) {
       // clear the interrupt (NB: Write 1 to reset)
@@ -76,7 +85,7 @@ void EXTI9_5_IRQHandler(void){
     // check for counter clockwise rotation -- if A is low and B is high
     else if(digitalRead(A_input) & digitalRead(B_input)) {
       // clear the interrupt (NB: Write 1 to reset)
-      EXTI->PR1 = (1 << gpioPinOffset(A_input));
+      EXTI->PR1 = (1 << gpioPinOffset(B_input));
       pulse_count = pulse_count - 1;
       }
   }

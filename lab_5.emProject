@@ -66,10 +66,12 @@
         <file file_name="STM32L432KC.h" />
         <file file_name="STM32L432KC_GPIO.c" />
         <file file_name="STM32L432KC_GPIO.h" />
-        <file file_name="STM32L432KC_RCC..c" />
+        <file file_name="STM32L432KC_RCC.c" />
         <file file_name="STM32L432KC_RCC.h">
           <configuration Name="Debug" build_exclude_from_build="No" />
         </file>
+        <file file_name="STM32L432KC_TIM.c" />
+        <file file_name="STM32L432KC_TIM.h" />
       </folder>
       <folder Name="src" />
       <file file_name="main.c" />
