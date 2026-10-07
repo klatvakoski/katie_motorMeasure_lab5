@@ -5,12 +5,17 @@
 volatile int32_t pulse_count = 0; 
 
 int main(void) {
+    volatile int32_t count_latch = 0; 
+    float pulse_per_revolution = 408; 
+
   // Enable A-input and B-input in order to get the interupts 
     gpioEnable(GPIO_PORT_B);
     pinMode(A_input, GPIO_INPUT);
-    GPIOB->PUPDR |= (0b10 << 2*gpioPinOffset(A_input)); 
-    GPIOB->PUPDR |= (0b10 << 2*gpioPinOffset(B_input));
     pinMode(B_input, GPIO_INPUT); 
+    GPIOB->PUPDR &= ~(0b11 << 2*gpioPinOffset(A_input)); 
+    GPIOB->PUPDR &= ~(0b11 << 2*gpioPinOffset(B_input));
+    GPIOB->PUPDR |= (0b01 << 2*gpioPinOffset(A_input)); 
+    GPIOB->PUPDR |= (0b01 << 2*gpioPinOffset(B_input));
     pinMode(A_output, GPIO_OUTPUT);
 
     
@@ -21,15 +26,15 @@ int main(void) {
 
   
   // 1. Enable SYSCFG clock domain in RCC
-  RCC->APB2ENR |= (1 << 0); // SYSCFGEN
+  RCC->APB2ENR |= (1 << 0); // enable SYSCFGEN
   // 2. Configure EXTICR for the input button interrupt
-  // EXTI0 is bits 2:0 of EXTICR1 (EXTICR[0] in C). Port B is 0b001, so we select 001.
-  SYSCFG->EXTICR[0] &= (0b001);
-  // EXTI6 is bits 10:8 of EXTICR2 (EXTICR[1] in C). Port B is 0b001, so we select 001.
-  SYSCFG->EXTICR[1] &= (0b001);
 
-  // Enable interrupts globally
-  __enable_irq();
+  // EXTI0 is bits 2:0 of EXTICR1 (EXTICR[1] in C). Port B is 0b001, so we select 001.
+  SYSCFG->EXTICR[0] &= (0b0);   //clear first
+  SYSCFG->EXTICR[0] |= (0b001);
+  // EXTI6 is bits 10:8 of EXTICR2 (EXTICR[1] in C). Port B is 0b001, so we select 001.
+  SYSCFG->EXTICR[1] &= ~(0b111 <<8);     //clear first
+  SYSCFG->EXTICR[1] |= (0b001 << 8);
 
   // Configure interrupt for falling edge of GPIO pin for button
   EXTI->IMR1 |= (1 << gpioPinOffset(A_input));   // 1. Configure mask bit for A
@@ -38,13 +43,24 @@ int main(void) {
   EXTI->RTSR1 |= (1 << gpioPinOffset(B_input)); // 2. Enable rising edge trigger for B
   EXTI->FTSR1 |= (1 << gpioPinOffset(A_input));  // 3. Enable falling edge trigger for A
   EXTI->FTSR1 |= (1 << gpioPinOffset(B_input));  // 3. Enable falling edge trigger for B
+
+  // Enable interrupts globally
+  __enable_irq();
+
   NVIC->ISER[0] |= (1 << 23);                       // 4. Turn on EXTI interrupt in NVIC_ISER (EXTI9_5 is IRQ 23)
   NVIC->ISER[0] |= (1 << 13);                       // 4. Turn on EXTI interrupt in NVIC_ISER (EXTI0 is IRQ 12)
   //NVIC_EnableIRQ(EXTI0_IRQn);                    // call func to turn on EXTI0 interrupt on NVIC_ISER
   //NVIC_EnableIRQ(EXTI9_5_IRQn);                  // call func to turn on EXTI9_5 interrupt on NVIC_ISER
 
+
+
   while(1){
-    delay_millis(DELAY_TIM,1000); 
+    delay_millis(DELAY_TIM,1000);
+    count_latch = pulse_count;  // grab current count value
+    pulse_count = 0; // reset pulse_count
+    float report = count_latch/pulse_per_revolution; 
+    printf("Hello World %f!\n", report, "rev/s");
+    //printf(pulse_count); 
   }
 
 }
@@ -94,5 +110,13 @@ void EXTI9_5_IRQHandler(void){
   }
 
 
+// Function used by printf to send characters to the laptop
+int _write(int file, char *ptr, int len) {
+  int i = 0;
+  for (i = 0; i < len; i++) {
+    ITM_SendChar((*ptr++));
+  }
+  return len;
+}
     
 

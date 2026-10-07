@@ -17,6 +17,8 @@
 
 #define A_input PB0 // connected to line 0 interrupt 
 #define B_input PB6 // coneected to line 6 interrupt
+//#define A_input PA10 // connected to line 0 interrupt 
+//#define B_input PA8 // coneected to line 6 interrupt
 #define A_output PB7
 #define B_output PB3
 #define DELAY_TIM TIM2
