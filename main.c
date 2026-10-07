@@ -59,8 +59,7 @@ int main(void) {
     count_latch = pulse_count;  // grab current count value
     pulse_count = 0; // reset pulse_count
     float report = count_latch/pulse_per_revolution; 
-    printf("Hello World %f!\n", report, "rev/s");
-    //printf(pulse_count); 
+    printf("Speed: %f rev/s! \n", report);
   }
 
 }
@@ -68,16 +67,21 @@ int main(void) {
 
 // A interrupt func
 void EXTI0_IRQHandler(void){ 
+    // clear the interrupt (NB: Write 1 to reset)
+    EXTI->PR1 = (1 << gpioPinOffset(A_input));
+
+    // set digital inputs
+    int A_in = digitalRead(A_input); 
+    int B_in = digitalRead(B_input); 
+
     // Check for clockwise rotation -- if A is high and B is low 
-    if (digitalRead(A_input) & ~digitalRead(B_input)) {
-      // clear the interrupt (NB: Write 1 to reset)
-      EXTI->PR1 = (1 << gpioPinOffset(A_input));
+    if (A_in & ~B_in) {
       pulse_count = pulse_count + 1; 
       togglePin(A_output);
       }
 
     // check for counter clockwise rotation -- if A is high and B is high
-    else if(digitalRead(A_input) & digitalRead(B_input)) {
+    else if(A_in & B_in) {
       // clear the interrupt (NB: Write 1 to reset)
       EXTI->PR1 = (1 << gpioPinOffset(A_input));
       pulse_count = pulse_count - 1;
@@ -87,21 +91,21 @@ void EXTI0_IRQHandler(void){
 
 // B interrupt func
 void EXTI9_5_IRQHandler(void){
-  // first make sure that the interrupt was from B_input (bc line 6 is shared with 5-9)
-  pinMode(B_output, GPIO_OUTPUT);
-  togglePin(B_output); 
+  // first make sure that the interrupt was from B_input (bc line 6 is shared with 5-9) 
   if (EXTI->PR1 & (1 << gpioPinOffset(B_input))) {
-    //check for clockwise rotation -- if B is high and A is high
-    if (digitalRead(A_input) & digitalRead(B_input)) {
       // clear the interrupt (NB: Write 1 to reset)
       EXTI->PR1 = (1 << gpioPinOffset(B_input));
+
+      // set digital inputs
+      int A_in = digitalRead(A_input); 
+      int B_in = digitalRead(B_input); 
+    //check for clockwise rotation -- if B is high and A is high
+    if (A_in & B_in) {
       pulse_count = pulse_count + 1; 
       }
 
     // check for counter clockwise rotation -- if A is low and B is high
-    else if(digitalRead(A_input) & digitalRead(B_input)) {
-      // clear the interrupt (NB: Write 1 to reset)
-      EXTI->PR1 = (1 << gpioPinOffset(B_input));
+    else if(~A_in & B_in) {
       pulse_count = pulse_count - 1;
       }
   }
