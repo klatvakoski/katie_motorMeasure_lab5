@@ -1,0 +1,30 @@
+// main.h
+// Josh Brake
+// jbrake@hmc.edu
+// 10/31/22
+
+// modified by Katie Latvakoski 10/4/2026
+
+#ifndef MAIN_H
+#define MAIN_H
+
+#include "STM32L432KC.h"
+#include <stm32l432xx.h>
+
+///////////////////////////////////////////////////////////////////////////////
+// Custom defines
+///////////////////////////////////////////////////////////////////////////////
+
+#define A_input PB0 // connected to line 0 interrupt 
+#define B_input PB6 // coneected to line 6 interrupt
+#define A_output PB7
+#define B_output PB3
+#define DELAY_TIM TIM2
+
+// function prototypes: 
+void sensorInputEnable(void); 
+void initCounter(void); 
+void interruptSetup(void);
+void a_b_interruptEnable(void); 
+
+#endif // MAIN_H
